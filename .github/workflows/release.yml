@@ -11,10 +11,9 @@ on:
     paths:
       - 'VERSION'
 
+# Least privilege: each job asks for what it needs; only goreleaser may write.
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release
@@ -48,15 +47,23 @@ jobs:
     needs: gate
     if: ${{ needs.gate.outputs.release == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Create and push the release tag
+        # VERSION content reaches the shell through the environment, never by
+        # template expansion into the script text.
+        env:
+          TAG: ${{ needs.gate.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          tag="${{ needs.gate.outputs.tag }}"
+          tag="${TAG}"
           # Idempotent for job reruns: the tag may already exist from a
           # previous partially-failed attempt of this same run.
           if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
@@ -95,7 +102,9 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Sync npm version with VERSION
         working-directory: npm
-        run: npm version "${{ needs.gate.outputs.version }}" --no-git-tag-version
+        env:
+          VER: ${{ needs.gate.outputs.version }}
+        run: npm version "${VER}" --no-git-tag-version
       - name: Publish to npm
         working-directory: npm
         env:
@@ -103,8 +112,9 @@ jobs:
         run: npm publish --access public
       - name: Smoke test packed package
         working-directory: npm
+        env:
+          VER: ${{ needs.gate.outputs.version }}
         run: |
-          VER="${{ needs.gate.outputs.version }}"
           # Install the locally packed wrapper rather than pulling the just-
           # published version from the npm registry: newly published scoped
           # versions can take minutes to become resolvable, which would falsely
