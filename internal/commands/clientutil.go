@@ -33,11 +33,17 @@ func buildClient(g *GlobalFlags) (*api.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newClient(token), nil
+}
+
+// newClient returns an API client for token, honoring DSCRD_API_BASE. An empty
+// token yields an unauthenticated client (webhook execution).
+func newClient(token string) *api.Client {
 	c := api.New(token)
 	if base := os.Getenv("DSCRD_API_BASE"); base != "" {
 		c.BaseURL = base
 	}
-	return c, nil
+	return c
 }
 
 // loadConfig reads the dscrd config from its resolved path.

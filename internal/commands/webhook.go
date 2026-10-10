@@ -169,17 +169,16 @@ func newWebhookExecuteCommand(g *GlobalFlags) *cobra.Command {
 				return err
 			}
 			path := "/webhooks/" + id + "/" + token
+			// Never echo the webhook token: not in dry-run output, not in errors.
+			shown := "/webhooks/" + id + "/<token>"
 			body := map[string]any{"content": content}
 			if g.DryRun {
-				// Never echo the webhook token, even in dry-run output.
-				dryRunPrint(cmd, "POST", "/webhooks/"+id+"/<token>", body)
+				dryRunPrint(cmd, "POST", shown, body)
 				return nil
 			}
-			client, err := buildClient(g)
-			if err != nil {
-				return err
-			}
-			if _, err := client.Do("POST", path, body); err != nil {
+			// The token in the path is the credential; the bot token is neither
+			// needed nor sent.
+			if _, err := newClient("").DoSecretPath("POST", path, shown, body); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "executed")

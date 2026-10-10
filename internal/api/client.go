@@ -4,9 +4,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -33,15 +35,22 @@ func New(token string) *Client {
 // "/" and may carry a query string. A non-nil body is marshaled as JSON.
 // Returns the raw response bytes (empty for 204 No Content).
 func (c *Client) Do(method, path string, body any) ([]byte, error) {
+	return c.DoSecretPath(method, path, path, body)
+}
+
+// DoSecretPath is Do for a path that embeds a credential (a webhook token).
+// shown stands in for path in every error, including transport errors that
+// would otherwise quote the full request URL.
+func (c *Client) DoSecretPath(method, path, shown string, body any) ([]byte, error) {
 	var payload []byte
 	if body != nil {
 		var err error
 		payload, err = json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("%s %s: encoding body: %w", method, path, err)
+			return nil, fmt.Errorf("%s %s: encoding body: %w", method, shown, err)
 		}
 	}
-	return c.roundTrip(method, path, "application/json", func() (io.Reader, error) {
+	return c.roundTrip(method, path, shown, "application/json", func() (io.Reader, error) {
 		if payload == nil {
 			return nil, nil
 		}
@@ -50,8 +59,10 @@ func (c *Client) Do(method, path string, body any) ([]byte, error) {
 }
 
 // roundTrip performs the request with rate-limit and search-index retries.
-// makeBody is called per attempt so retries resend a fresh reader.
-func (c *Client) roundTrip(method, path, contentType string, makeBody func() (io.Reader, error)) ([]byte, error) {
+// makeBody is called per attempt so retries resend a fresh reader. shown is the
+// path reported in errors (equal to path unless it carries a secret). An empty
+// Token sends no Authorization header (webhook execution is token-in-path).
+func (c *Client) roundTrip(method, path, shown, contentType string, makeBody func() (io.Reader, error)) ([]byte, error) {
 	endpoint := c.BaseURL + path
 
 	for attempt := 0; ; attempt++ {
@@ -66,16 +77,23 @@ func (c *Client) roundTrip(method, path, contentType string, makeBody func() (io
 		if bodyReader != nil {
 			req.Header.Set("Content-Type", contentType)
 		}
-		req.Header.Set("Authorization", "Bot "+c.Token)
+		if c.Token != "" {
+			req.Header.Set("Authorization", "Bot "+c.Token)
+		}
 
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
+			// A transport error quotes the request URL; keep the secret out.
+			var urlErr *url.Error
+			if errors.As(err, &urlErr) {
+				urlErr.URL = c.BaseURL + shown
+			}
 			return nil, err
 		}
 		raw, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return nil, fmt.Errorf("%s %s: reading response body: %w", method, path, err)
+			return nil, fmt.Errorf("%s %s: reading response body: %w", method, shown, err)
 		}
 
 		if wait, retry := retryDelay(resp, raw); retry {
@@ -83,11 +101,11 @@ func (c *Client) roundTrip(method, path, contentType string, makeBody func() (io
 				time.Sleep(wait)
 				continue
 			}
-			return nil, newAPIError(method, path, resp.StatusCode, raw)
+			return nil, newAPIError(method, shown, resp.StatusCode, raw)
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
-			return nil, newAPIError(method, path, resp.StatusCode, raw)
+			return nil, newAPIError(method, shown, resp.StatusCode, raw)
 		}
 		return raw, nil
 	}

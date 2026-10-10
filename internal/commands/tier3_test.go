@@ -188,6 +188,28 @@ func TestWebhookVerbs(t *testing.T) {
 	if err != nil || !strings.Contains(out, "executed") {
 		t.Fatalf("webhook execute: %v (%s)", err, out)
 	}
+	// A failing execute must not leak the token through the API error, nor
+	// send the bot token to an endpoint that does not need it.
+	var gotAuth string
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message":"Unknown Webhook","code":10015}`))
+	}))
+	defer failing.Close()
+	_, err = runCmd(t, failing, "webhook", "execute", "--id", "121212121212121212", "--token", "secret-hook-token", "--text", "x")
+	if err == nil || strings.Contains(err.Error(), "secret-hook-token") || !strings.Contains(err.Error(), "<token>") {
+		t.Fatalf("webhook execute error leaked token: %v", err)
+	}
+	if gotAuth != "" {
+		t.Fatalf("webhook execute sent Authorization %q", gotAuth)
+	}
+	// So must a transport error, which quotes the request URL.
+	failing.Close()
+	_, err = runCmd(t, failing, "webhook", "execute", "--id", "121212121212121212", "--token", "secret-hook-token", "--text", "x")
+	if err == nil || strings.Contains(err.Error(), "secret-hook-token") {
+		t.Fatalf("webhook execute transport error leaked token: %v", err)
+	}
 	// Dry-run must not leak the token.
 	out, err = runCmd(t, nil, "webhook", "execute", "--id", "1", "--token", "secret-hook-token", "--text", "x", "--dry-run")
 	if err != nil || strings.Contains(out, "secret-hook-token") {
