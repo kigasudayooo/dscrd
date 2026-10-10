@@ -64,9 +64,9 @@ func emitTable(w io.Writer, v reflect.Value) error {
 func toCell(fv reflect.Value) string {
 	switch fv.Kind() {
 	case reflect.String:
-		return fv.String()
+		return Sanitize(fv.String())
 	default:
 		b, _ := json.Marshal(fv.Interface())
-		return string(b)
+		return Sanitize(string(b))
 	}
 }
