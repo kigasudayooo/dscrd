@@ -48,11 +48,13 @@ scripts/smoke.sh         # live end-to-end test against a real server (env-gated
 .goreleaser.yaml         # darwin/linux × amd64/arm64 archives + checksums
 VERSION / version.go     # version SSOT, embedded via go:embed
 PLAN.md                  # design spec (zh-TW, user-facing)
+docs/manual-ja.md        # feature manual (ja), per-feature links into the source
 ```
 
 ## Conventions
 
-- Code comments and test names in English; SPEC.md/CLAUDE.md in English; PLAN.md in zh-TW.
+- Code comments and test names in English; SPEC.md/CLAUDE.md in English; PLAN.md in zh-TW; docs/manual-ja.md in Japanese.
+- `docs/manual-ja.md` is hand-written and links to source files by path and function name (no line numbers). Update it when a command group, a safety mechanism, or a file it links to is added, renamed, or removed.
 - One file per command group; compact item structs implement `Concise()`; tests exercise commands end-to-end against `httptest` servers through the `DSCRD_API_BASE` override.
 - Test fixtures use scrubbed identifiers only (`Alice`/`Bob`, patterned snowflakes like `111111111111111111`); never real names, IDs, or tokens.
 - Command annotations are the metadata SSOT: `discordEndpoint` (API route), `write` ("true" for mutations), `perms` (Discord permission names), `intents` (privileged intents). Skills render these; adding a command without them produces an incomplete skill.

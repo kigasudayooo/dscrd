@@ -147,7 +147,7 @@ dscrd poll     create|results|end                 dscrd automod list|info|create
 dscrd api      <METHOD> <path>                    any REST endpoint
 ```
 
-`--help` on any level gives the full reference. Channels accept IDs or names (`--channel "#general"`); the target server comes from `--guild <id|name>` or the profile's `default_guild`.
+`--help` on any level gives the full reference. A feature-by-feature manual in Japanese, with links into the source, lives at [docs/manual-ja.md](docs/manual-ja.md). Channels accept IDs or names (`--channel "#general"`); the target server comes from `--guild <id|name>` or the profile's `default_guild`.
 
 ### Global flags
 
