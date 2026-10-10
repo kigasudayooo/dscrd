@@ -264,3 +264,33 @@ func TestPrettifyMentionsPattern(t *testing.T) {
 		t.Fatalf("matches = %v (role mentions must not match)", got)
 	}
 }
+
+// Text relayed by an agent is untrusted: every posting verb must suppress
+// mention pings unless --allow-mentions is passed.
+func TestPostingVerbsSuppressMentionsByDefault(t *testing.T) {
+	var body string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		body = string(b)
+		w.Write([]byte(`{"id":"333333333333333333","name":"t"}`))
+	}))
+	defer srv.Close()
+
+	const suppressed = `"allowed_mentions":{"parse":[]}`
+	ch, id := "222222222222222222", "333333333333333333"
+	verbs := [][]string{
+		{"msg", "send", "--channel", ch, "--text", "@everyone hi"},
+		{"dm", "send", "--user", "444444444444444444", "--text", "@everyone hi"},
+		{"thread", "reply", "--thread", id, "--text", "@everyone hi"},
+		{"thread", "create", "--channel", ch, "--name", "t", "--text", "@everyone hi"},
+		{"webhook", "execute", "--id", id, "--token", "hook-token", "--text", "@everyone hi"},
+	}
+	for _, args := range verbs {
+		if _, err := runCmd(t, srv, args...); err != nil || !strings.Contains(body, suppressed) {
+			t.Errorf("%v: mentions not suppressed: %v (%s)", args, err, body)
+		}
+		if _, err := runCmd(t, srv, append(args, "--allow-mentions")...); err != nil || strings.Contains(body, "allowed_mentions") {
+			t.Errorf("%v --allow-mentions: still suppressed: %v (%s)", args, err, body)
+		}
+	}
+}

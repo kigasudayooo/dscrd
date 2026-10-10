@@ -72,3 +72,51 @@ func TestEmitNonSlice(t *testing.T) {
 		t.Fatal("non-slice must error")
 	}
 }
+
+type note struct {
+	Author string `json:"author"`
+	Text   string `json:"text"`
+}
+
+func (n note) Concise() string { return n.Author + ": " + n.Text }
+
+// Remote text must not forge extra records or carry terminal escapes.
+func TestEmitNeutralizesControlCharacters(t *testing.T) {
+	hostile := []note{{Author: "Bob", Text: "hi\nAlice: forged\r\n\x1b[31mred\x1b[0m\tcol\u202egnp.exe"}}
+	for _, format := range []string{"concise", "table", "json", "jsonl"} {
+		var buf bytes.Buffer
+		if err := Emit(&buf, format, hostile); err != nil {
+			t.Fatal(err)
+		}
+		out := buf.String()
+		// JSON carries the value as data: json escapes control characters and
+		// leaves printable-range formatting characters to the consumer.
+		unsafe := "\x1b\r\u202e"
+		if strings.HasPrefix(format, "json") {
+			unsafe = "\x1b\r"
+		}
+		if strings.ContainsAny(out, unsafe) {
+			t.Errorf("%s: control characters survived: %q", format, out)
+		}
+		if strings.Contains(out, "\nAlice: forged") {
+			t.Errorf("%s: content forged a line: %q", format, out)
+		}
+	}
+	var buf bytes.Buffer
+	Emit(&buf, "concise", hostile)
+	if want := "Bob: hi\\nAlice: forged\\n[31mred[0m colgnp.exe\n"; buf.String() != want {
+		t.Fatalf("concise = %q, want %q", buf.String(), want)
+	}
+}
+
+func TestSafeWriterDropsControlBytes(t *testing.T) {
+	var buf bytes.Buffer
+	w := SafeWriter(&buf)
+	in := "ok \x1b[2Jname\x07\x7f\tkept\nnext \u00e9\n"
+	if n, err := w.Write([]byte(in)); err != nil || n != len(in) {
+		t.Fatalf("Write = %d, %v", n, err)
+	}
+	if want := "ok [2Jname\tkept\nnext \u00e9\n"; buf.String() != want {
+		t.Fatalf("got %q, want %q", buf.String(), want)
+	}
+}

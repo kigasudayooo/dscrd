@@ -39,7 +39,7 @@ func emitConcise(w io.Writer, v reflect.Value) error {
 		if !ok {
 			return fmt.Errorf("output: %s does not implement Concise", v.Index(i).Type())
 		}
-		if _, err := fmt.Fprintln(w, c.Concise()); err != nil {
+		if _, err := fmt.Fprintln(w, Sanitize(c.Concise())); err != nil {
 			return err
 		}
 	}

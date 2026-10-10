@@ -191,6 +191,7 @@ func newMsgReadCommand(g *GlobalFlags) *cobra.Command {
 
 func newMsgSendCommand(g *GlobalFlags) *cobra.Command {
 	var channel, text, textFile, replyTo, file string
+	var allowMentions bool
 	cmd := &cobra.Command{
 		Use:   "send",
 		Short: "Send a message (optionally as a reply or with a file)",
@@ -210,10 +211,7 @@ func newMsgSendCommand(g *GlobalFlags) *cobra.Command {
 			} else if file == "" {
 				return fmt.Errorf("provide --text, --text-file, or --file")
 			}
-			body := map[string]any{}
-			if content != "" {
-				body["content"] = content
-			}
+			body := messageBody(content, allowMentions)
 			if replyTo != "" {
 				body["message_reference"] = map[string]string{"message_id": replyTo}
 			}
@@ -261,6 +259,7 @@ func newMsgSendCommand(g *GlobalFlags) *cobra.Command {
 	cmd.Flags().StringVar(&textFile, "text-file", "", "path to text file (use - for stdin)")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "message ID to reply to")
 	cmd.Flags().StringVar(&file, "file", "", "path of a file to attach")
+	bindMentionsFlag(cmd, &allowMentions)
 	cmd.MarkFlagRequired("channel")
 	return cmd
 }

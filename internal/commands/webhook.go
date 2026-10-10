@@ -136,6 +136,9 @@ func newWebhookDeleteCommand(g *GlobalFlags) *cobra.Command {
 			"perms":           "MANAGE_WEBHOOKS",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireSnowflake("webhook-id", args[0]); err != nil {
+				return err
+			}
 			if g.DryRun {
 				dryRunPrint(cmd, "DELETE", "/webhooks/"+args[0], nil)
 				return nil
@@ -156,6 +159,7 @@ func newWebhookDeleteCommand(g *GlobalFlags) *cobra.Command {
 
 func newWebhookExecuteCommand(g *GlobalFlags) *cobra.Command {
 	var id, token, text, textFile string
+	var allowMentions bool
 	cmd := &cobra.Command{
 		Use:   "execute",
 		Short: "Post a message through a webhook",
@@ -169,17 +173,20 @@ func newWebhookExecuteCommand(g *GlobalFlags) *cobra.Command {
 				return err
 			}
 			path := "/webhooks/" + id + "/" + token
-			body := map[string]any{"content": content}
+			// Never echo the webhook token: not in dry-run output, not in errors.
+			shown := "/webhooks/" + id + "/<token>"
+			body := messageBody(content, allowMentions)
 			if g.DryRun {
-				// Never echo the webhook token, even in dry-run output.
-				dryRunPrint(cmd, "POST", "/webhooks/"+id+"/<token>", body)
+				dryRunPrint(cmd, "POST", shown, body)
 				return nil
 			}
-			client, err := buildClient(g)
+			// The token in the path is the credential; the bot token is neither
+			// needed nor sent.
+			client, err := newClient("")
 			if err != nil {
 				return err
 			}
-			if _, err := client.Do("POST", path, body); err != nil {
+			if _, err := client.DoSecretPath("POST", path, shown, body); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "executed")
@@ -190,6 +197,7 @@ func newWebhookExecuteCommand(g *GlobalFlags) *cobra.Command {
 	cmd.Flags().StringVar(&token, "token", "", "webhook token")
 	cmd.Flags().StringVar(&text, "text", "", "message text")
 	cmd.Flags().StringVar(&textFile, "text-file", "", "path to text file (use - for stdin)")
+	bindMentionsFlag(cmd, &allowMentions)
 	cmd.MarkFlagRequired("id")
 	cmd.MarkFlagRequired("token")
 	return cmd

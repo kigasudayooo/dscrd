@@ -141,6 +141,9 @@ func newInviteDeleteCommand(g *GlobalFlags) *cobra.Command {
 			"perms":           "MANAGE_CHANNELS",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireInviteCode(args[0]); err != nil {
+				return err
+			}
 			if g.DryRun {
 				dryRunPrint(cmd, "DELETE", "/invites/"+args[0], nil)
 				return nil
@@ -168,6 +171,9 @@ func newInviteInfoCommand(g *GlobalFlags) *cobra.Command {
 			"discordEndpoint": "GET /invites/{invite.code}",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireInviteCode(args[0]); err != nil {
+				return err
+			}
 			client, err := buildClient(g)
 			if err != nil {
 				return err

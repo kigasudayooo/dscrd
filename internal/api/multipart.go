@@ -35,7 +35,7 @@ func (c *Client) DoMultipart(method, path string, payloadJSON []byte, filePath s
 	}
 
 	body := buf.Bytes()
-	return c.roundTrip(method, path, w.FormDataContentType(), func() (io.Reader, error) {
+	return c.roundTrip(method, path, path, w.FormDataContentType(), func() (io.Reader, error) {
 		return bytes.NewReader(body), nil
 	})
 }

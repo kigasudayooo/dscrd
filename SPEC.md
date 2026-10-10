@@ -57,6 +57,12 @@ PLAN.md                  # design spec (zh-TW, user-facing)
 - Test fixtures use scrubbed identifiers only (`Alice`/`Bob`, patterned snowflakes like `111111111111111111`); never real names, IDs, or tokens.
 - Command annotations are the metadata SSOT: `discordEndpoint` (API route), `write` ("true" for mutations), `perms` (Discord permission names), `intents` (privileged intents). Skills render these; adding a command without them produces an incomplete skill.
 - Tokens and webhook tokens are never printed or logged; `auth status` reports token state (`set`/`locked`/`empty`), never values.
+- Untrusted input never shapes a request or the terminal:
+  - ID flags listed in `idFlags` (`input.go`) must be snowflakes and are validated in the root `PersistentPreRunE`; a new flag that is spliced into a path must be added there (or validated in `RunE` for positional args). `api.Client` additionally refuses dot segments and control characters.
+  - A path that embeds a credential goes through `Client.DoSecretPath`, which reports a redacted path in every error.
+  - Posting verbs build their payload with `messageBody`, which suppresses mention pings (`allowed_mentions.parse = []`) unless `--allow-mentions` is passed.
+  - Remote text is rendered through `output.Sanitize` (line breaks escaped, control and bidi characters dropped); `main` also wraps stdout/stderr in `output.SafeWriter`.
+  - `DSCRD_API_BASE` must be https (http for loopback only); `file download` is https-only on the CDN hosts, re-checks redirects, and needs `--force` to overwrite.
 
 ## Verification
 

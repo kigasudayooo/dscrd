@@ -59,8 +59,56 @@ func TestFileDownload(t *testing.T) {
 }
 
 func TestFileDownloadRefusesForeignHosts(t *testing.T) {
-	if _, err := runCmd(t, nil, "file", "download", "https://example.com/x.txt"); err == nil {
-		t.Fatal("non-CDN host must be refused")
+	t.Setenv("DSCRD_CDN_ALLOW_HOST", "")
+	for _, u := range []string{
+		"https://example.com/x.txt",
+		"http://cdn.discordapp.com/attachments/1/2/x.txt", // plaintext
+		"file:///etc/hosts",                               // empty host
+		"/attachments/1/2/x.txt",
+	} {
+		if _, err := runCmd(t, nil, "file", "download", u, "--dry-run"); err == nil {
+			t.Errorf("%s must be refused", u)
+		}
+	}
+}
+
+func TestFileDownloadRefusesRedirectOffCDN(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://example.com/x.txt", http.StatusFound)
+	}))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	t.Setenv("DSCRD_CDN_ALLOW_HOST", u.Host)
+
+	_, err := runCmd(t, nil, "file", "download", srv.URL+"/a.txt", "--out", t.TempDir()+"/a.txt")
+	if err == nil || !strings.Contains(err.Error(), "refusing to download") {
+		t.Fatalf("redirect off the CDN must be refused, got %v", err)
+	}
+}
+
+func TestFileDownloadDoesNotOverwrite(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("new"))
+	}))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	t.Setenv("DSCRD_CDN_ALLOW_HOST", u.Host)
+
+	outPath := t.TempDir() + "/keep.txt"
+	if err := os.WriteFile(outPath, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCmd(t, nil, "file", "download", srv.URL+"/a.txt", "--out", outPath); err == nil {
+		t.Fatal("existing file must not be overwritten without --force")
+	}
+	if data, _ := os.ReadFile(outPath); string(data) != "old" {
+		t.Fatalf("file was modified: %q", data)
+	}
+	if _, err := runCmd(t, nil, "file", "download", srv.URL+"/a.txt", "--out", outPath, "--force"); err != nil {
+		t.Fatalf("--force: %v", err)
+	}
+	if data, _ := os.ReadFile(outPath); string(data) != "new" {
+		t.Fatalf("--force did not overwrite: %q", data)
 	}
 }
 

@@ -36,6 +36,7 @@ func openDM(c *api.Client, user string) (string, error) {
 
 func newDMSendCommand(g *GlobalFlags) *cobra.Command {
 	var user, text, textFile string
+	var allowMentions bool
 	cmd := &cobra.Command{
 		Use:   "send",
 		Short: "Send a DM to a user (as the bot)",
@@ -60,7 +61,7 @@ func newDMSendCommand(g *GlobalFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := client.Do("POST", "/channels/"+dmID+"/messages", map[string]any{"content": content})
+			raw, err := client.Do("POST", "/channels/"+dmID+"/messages", messageBody(content, allowMentions))
 			if err != nil {
 				return err
 			}
@@ -79,6 +80,7 @@ func newDMSendCommand(g *GlobalFlags) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&user, "user", "", "recipient user ID")
+	bindMentionsFlag(cmd, &allowMentions)
 	cmd.Flags().StringVar(&text, "text", "", "message text")
 	cmd.Flags().StringVar(&textFile, "text-file", "", "path to text file (use - for stdin)")
 	cmd.MarkFlagRequired("user")

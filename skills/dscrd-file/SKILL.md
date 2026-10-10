@@ -31,6 +31,7 @@ dscrd file download <attachment-url> [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--force` | — | — | overwrite the output file if it already exists |
 | `--out` | — | — | output path (default: attachment file name) |
 
 

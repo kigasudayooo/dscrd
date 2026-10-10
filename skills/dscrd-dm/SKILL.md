@@ -49,6 +49,7 @@ dscrd dm send [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--allow-mentions` | — | — | let @everyone/@here, role and user mentions in the text ping (default: suppressed) |
 | `--text` | — | — | message text |
 | `--text-file` | — | — | path to text file (use - for stdin) |
 | `--user` | ✓ | — | recipient user ID |
