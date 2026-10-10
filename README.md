@@ -177,7 +177,9 @@ npx skills add https://github.com/howar31/dscrd
 - Tokens are stored AES-256-GCM-encrypted in `~/.config/dscrd/config.toml` (mode 0600); the key lives in the OS keychain, or a 0600 file when no keychain is available (`DSCRD_KEYRING_BACKEND=auto|keyring|file`).
 - Tokens are never printed or logged. `auth status` reports state (`set`/`locked`/`empty`), never values.
 - `DSCRD_TOKEN` (env) overrides stored profiles for ephemeral use.
-- `file download` only fetches from Discord CDN hosts.
+- `file download` only fetches from Discord CDN hosts over https, and refuses to overwrite an existing file unless `--force` is passed.
+- Messages the bot posts do not ping: `@everyone`/`@here`, role and user mentions are suppressed unless you pass `--allow-mentions`.
+- ID flags (`--message`, `--user`, `--role`, …) accept Discord IDs only; message text is printed on one line with line breaks shown as `\n`.
 
 See [SECURITY.md](SECURITY.md) for reporting.
 
