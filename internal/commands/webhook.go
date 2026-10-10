@@ -182,7 +182,11 @@ func newWebhookExecuteCommand(g *GlobalFlags) *cobra.Command {
 			}
 			// The token in the path is the credential; the bot token is neither
 			// needed nor sent.
-			if _, err := newClient("").DoSecretPath("POST", path, shown, body); err != nil {
+			client, err := newClient("")
+			if err != nil {
+				return err
+			}
+			if _, err := client.DoSecretPath("POST", path, shown, body); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "executed")

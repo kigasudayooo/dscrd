@@ -252,3 +252,22 @@ func TestDoRejectsRetargetingPaths(t *testing.T) {
 		t.Fatalf("legitimate path refused: %v", err)
 	}
 }
+
+func TestDoRateLimitWaitIsCapped(t *testing.T) {
+	attempts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"retry_after":86400}`))
+	}))
+	defer srv.Close()
+
+	_, err := newTestClient(srv).Do("GET", "/users/@me", nil)
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.ExitCode() != 5 {
+		t.Fatalf("err = %v, want rate-limit APIError (exit 5)", err)
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1 (no sleep on an over-long retry_after)", attempts)
+	}
+}

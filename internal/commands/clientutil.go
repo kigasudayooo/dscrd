@@ -3,6 +3,8 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,17 +35,38 @@ func buildClient(g *GlobalFlags) (*api.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newClient(token), nil
+	return newClient(token)
 }
 
 // newClient returns an API client for token, honoring DSCRD_API_BASE. An empty
 // token yields an unauthenticated client (webhook execution).
-func newClient(token string) *api.Client {
+func newClient(token string) (*api.Client, error) {
 	c := api.New(token)
 	if base := os.Getenv("DSCRD_API_BASE"); base != "" {
+		if err := checkAPIBase(base); err != nil {
+			return nil, err
+		}
 		c.BaseURL = base
 	}
-	return c
+	return c, nil
+}
+
+// checkAPIBase vets a DSCRD_API_BASE override. Every request carries the bot
+// token, so the override must not send it in cleartext: https is required
+// except for a loopback host (tests, local proxies).
+func checkAPIBase(base string) error {
+	u, err := url.Parse(base)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("DSCRD_API_BASE %q is not an absolute URL", base)
+	}
+	if u.Scheme == "https" {
+		return nil
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); u.Scheme == "http" && (host == "localhost" || (ip != nil && ip.IsLoopback())) {
+		return nil
+	}
+	return fmt.Errorf("DSCRD_API_BASE %q must use https (http is allowed for loopback only)", base)
 }
 
 // loadConfig reads the dscrd config from its resolved path.

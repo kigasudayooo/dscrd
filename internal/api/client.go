@@ -20,15 +20,19 @@ type Client struct {
 	BaseURL    string // overridable for tests; default https://discord.com/api/v10
 	HTTP       *http.Client
 	MaxRetries int // rate-limit / index-warm-up retries
+	// MaxRetryWait caps a single server-requested wait; a longer retry_after
+	// fails the call instead of blocking the caller for an unbounded time.
+	MaxRetryWait time.Duration
 }
 
 // New returns a Client for the given bot token.
 func New(token string) *Client {
 	return &Client{
-		Token:      token,
-		BaseURL:    "https://discord.com/api/v10",
-		HTTP:       &http.Client{Timeout: 30 * time.Second},
-		MaxRetries: 3,
+		Token:        token,
+		BaseURL:      "https://discord.com/api/v10",
+		HTTP:         &http.Client{Timeout: 30 * time.Second},
+		MaxRetries:   3,
+		MaxRetryWait: time.Minute,
 	}
 }
 
@@ -101,7 +105,7 @@ func (c *Client) roundTrip(method, path, shown, contentType string, makeBody fun
 		}
 
 		if wait, retry := retryDelay(resp, raw); retry {
-			if attempt < c.MaxRetries {
+			if attempt < c.MaxRetries && wait <= c.MaxRetryWait {
 				time.Sleep(wait)
 				continue
 			}

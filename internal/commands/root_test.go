@@ -114,3 +114,27 @@ func TestIDFlagsRejectPathInjection(t *testing.T) {
 		}
 	}
 }
+
+// The bot token rides on every request, so DSCRD_API_BASE must not point it at
+// a cleartext or malformed endpoint.
+func TestAPIBaseOverrideIsVetted(t *testing.T) {
+	for base, ok := range map[string]bool{
+		"https://proxy.example.invalid/api/v10": true,
+		"http://127.0.0.1:8080":                 true,
+		"http://localhost:8080":                 true,
+		"http://[::1]:8080":                     true,
+		"http://proxy.example.invalid/api":      false,
+		"ftp://127.0.0.1/":                      false,
+		"proxy.example.invalid":                 false,
+	} {
+		if err := checkAPIBase(base); (err == nil) != ok {
+			t.Errorf("checkAPIBase(%q) = %v, want ok=%v", base, err, ok)
+		}
+	}
+	t.Setenv("DSCRD_API_BASE", "http://proxy.example.invalid")
+	t.Setenv("DSCRD_TOKEN", "test-token")
+	t.Setenv("DSCRD_CONFIG", t.TempDir()+"/config.toml")
+	if _, err := buildClient(&GlobalFlags{}); err == nil {
+		t.Fatal("cleartext DSCRD_API_BASE must be refused")
+	}
+}
