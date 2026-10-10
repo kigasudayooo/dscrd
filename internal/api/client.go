@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -63,6 +64,9 @@ func (c *Client) DoSecretPath(method, path, shown string, body any) ([]byte, err
 // path reported in errors (equal to path unless it carries a secret). An empty
 // Token sends no Authorization header (webhook execution is token-in-path).
 func (c *Client) roundTrip(method, path, shown, contentType string, makeBody func() (io.Reader, error)) ([]byte, error) {
+	if err := checkPath(path); err != nil {
+		return nil, fmt.Errorf("%s %s: %w", method, shown, err)
+	}
 	endpoint := c.BaseURL + path
 
 	for attempt := 0; ; attempt++ {
@@ -109,6 +113,25 @@ func (c *Client) roundTrip(method, path, shown, contentType string, makeBody fun
 		}
 		return raw, nil
 	}
+}
+
+// checkPath refuses a request path that would not reach the endpoint it names:
+// dot segments ("..", also percent-encoded) are collapsed server-side and so
+// retarget the call, and control characters or a fragment corrupt the request
+// line. It is the last line of defense behind per-flag ID validation.
+func checkPath(path string) error {
+	for _, r := range path {
+		if r <= ' ' || r == 0x7f || r == '#' || r == '\\' {
+			return errors.New("invalid character in request path")
+		}
+	}
+	route, _, _ := strings.Cut(path, "?")
+	for _, seg := range strings.Split(route, "/") {
+		if dec, err := url.PathUnescape(seg); err != nil || dec == "." || dec == ".." {
+			return errors.New("request path must not contain dot segments")
+		}
+	}
+	return nil
 }
 
 // retryDelay reports whether the response is retryable (rate limit, or a

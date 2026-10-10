@@ -136,6 +136,9 @@ func newWebhookDeleteCommand(g *GlobalFlags) *cobra.Command {
 			"perms":           "MANAGE_WEBHOOKS",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireSnowflake("webhook-id", args[0]); err != nil {
+				return err
+			}
 			if g.DryRun {
 				dryRunPrint(cmd, "DELETE", "/webhooks/"+args[0], nil)
 				return nil

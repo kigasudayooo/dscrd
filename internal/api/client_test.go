@@ -225,3 +225,30 @@ func TestDoMultipart(t *testing.T) {
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o600)
 }
+
+func TestDoRejectsRetargetingPaths(t *testing.T) {
+	hit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+	}))
+	defer srv.Close()
+
+	for _, path := range []string{
+		"/channels/1/messages/../../../guilds/2",
+		"/channels/1/messages/%2e%2e/x",
+		"/channels/1/./messages",
+		"/channels/1/messages/2#frag",
+		"/channels/1/messages/2\r\nX-Injected: 1",
+	} {
+		if _, err := newTestClient(srv).Do("DELETE", path, nil); err == nil {
+			t.Errorf("Do(%q) succeeded, want refusal", path)
+		}
+	}
+	if hit {
+		t.Fatal("a refused path reached the server")
+	}
+	// Dots inside a segment and in the query are legitimate.
+	if _, err := newTestClient(srv).Do("GET", "/users/@me?after=1.5&x=..", nil); err != nil {
+		t.Fatalf("legitimate path refused: %v", err)
+	}
+}

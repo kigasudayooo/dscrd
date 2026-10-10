@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -88,6 +89,9 @@ func newPollResultsCommand(g *GlobalFlags) *cobra.Command {
 			"discordEndpoint": "GET /channels/{channel.id}/polls/{message.id}/answers/{answer.id}",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if n, err := strconv.Atoi(answer); err != nil || n < 1 {
+				return fmt.Errorf("--answer must be a 1-based answer position, got %q", answer)
+			}
 			client, err := buildClient(g)
 			if err != nil {
 				return err

@@ -211,7 +211,7 @@ func TestWebhookVerbs(t *testing.T) {
 		t.Fatalf("webhook execute transport error leaked token: %v", err)
 	}
 	// Dry-run must not leak the token.
-	out, err = runCmd(t, nil, "webhook", "execute", "--id", "1", "--token", "secret-hook-token", "--text", "x", "--dry-run")
+	out, err = runCmd(t, nil, "webhook", "execute", "--id", "121212121212121212", "--token", "secret-hook-token", "--text", "x", "--dry-run")
 	if err != nil || strings.Contains(out, "secret-hook-token") {
 		t.Fatalf("webhook execute dry-run leaked token: %v (%s)", err, out)
 	}

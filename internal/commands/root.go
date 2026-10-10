@@ -25,6 +25,9 @@ func NewRootCommand(version string) *cobra.Command {
 	// consistent ("dscrd <version>"); Cobra's default template prints
 	// "dscrd version <version>".
 	root.SetVersionTemplate("dscrd {{.Version}}\n")
+	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		return validateIDFlags(cmd)
+	}
 	bindGlobalFlags(root, g)
 	root.AddCommand(
 		newAPICommand(g),
