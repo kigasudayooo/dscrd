@@ -110,6 +110,7 @@ func newThreadListCommand(g *GlobalFlags) *cobra.Command {
 
 func newThreadCreateCommand(g *GlobalFlags) *cobra.Command {
 	var channel, name, fromMessage, text, textFile string
+	var allowMentions bool
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a thread (from a message, standalone, or a forum post with --text)",
@@ -139,7 +140,7 @@ func newThreadCreateCommand(g *GlobalFlags) *cobra.Command {
 					return err
 				}
 				path = "/channels/" + cid + "/threads"
-				body["message"] = map[string]any{"content": content}
+				body["message"] = messageBody(content, allowMentions)
 			default:
 				path = "/channels/" + cid + "/threads"
 				body["type"] = 11 // public thread
@@ -167,6 +168,7 @@ func newThreadCreateCommand(g *GlobalFlags) *cobra.Command {
 	cmd.Flags().StringVar(&channel, "channel", "", "parent channel ID or name")
 	cmd.Flags().StringVar(&name, "name", "", "thread name")
 	cmd.Flags().StringVar(&fromMessage, "from-message", "", "start the thread from this message ID")
+	bindMentionsFlag(cmd, &allowMentions)
 	cmd.Flags().StringVar(&text, "text", "", "initial message (required for forum channels)")
 	cmd.Flags().StringVar(&textFile, "text-file", "", "path to initial message file (use - for stdin)")
 	cmd.MarkFlagRequired("channel")
@@ -219,6 +221,7 @@ func newThreadReadCommand(g *GlobalFlags) *cobra.Command {
 
 func newThreadReplyCommand(g *GlobalFlags) *cobra.Command {
 	var thread, text, textFile string
+	var allowMentions bool
 	cmd := &cobra.Command{
 		Use:   "reply",
 		Short: "Reply in a thread",
@@ -233,7 +236,7 @@ func newThreadReplyCommand(g *GlobalFlags) *cobra.Command {
 				return err
 			}
 			path := "/channels/" + thread + "/messages"
-			body := map[string]any{"content": content}
+			body := messageBody(content, allowMentions)
 			if g.DryRun {
 				dryRunPrint(cmd, "POST", path, body)
 				return nil
@@ -261,6 +264,7 @@ func newThreadReplyCommand(g *GlobalFlags) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&thread, "thread", "", "thread ID")
+	bindMentionsFlag(cmd, &allowMentions)
 	cmd.Flags().StringVar(&text, "text", "", "reply text")
 	cmd.Flags().StringVar(&textFile, "text-file", "", "path to text file (use - for stdin)")
 	cmd.MarkFlagRequired("thread")

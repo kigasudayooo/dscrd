@@ -193,6 +193,7 @@ dscrd msg send [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--allow-mentions` | — | — | let @everyone/@here, role and user mentions in the text ping (default: suppressed) |
 | `--channel` | ✓ | — | channel ID or name |
 | `--file` | — | — | path of a file to attach |
 | `--reply-to` | — | — | message ID to reply to |

@@ -78,3 +78,24 @@ func readContent(text, file, flagName, fileFlagName string) (string, error) {
 		return string(data), nil
 	}
 }
+
+// bindMentionsFlag registers --allow-mentions on a verb that posts text.
+func bindMentionsFlag(cmd *cobra.Command, allow *bool) {
+	cmd.Flags().BoolVar(allow, "allow-mentions", false,
+		"let @everyone/@here, role and user mentions in the text ping (default: suppressed)")
+}
+
+// messageBody builds a message payload for content. Unless allow is set, it
+// suppresses every mention ping: relayed or quoted text is untrusted, and
+// Discord's default would let an embedded @everyone notify the whole server.
+// The mention markup still renders; it just does not notify.
+func messageBody(content string, allow bool) map[string]any {
+	body := map[string]any{}
+	if content != "" {
+		body["content"] = content
+	}
+	if !allow {
+		body["allowed_mentions"] = map[string]any{"parse": []string{}}
+	}
+	return body
+}

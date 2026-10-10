@@ -58,6 +58,7 @@ dscrd thread create [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--allow-mentions` | — | — | let @everyone/@here, role and user mentions in the text ping (default: suppressed) |
 | `--channel` | ✓ | — | parent channel ID or name |
 | `--from-message` | — | — | start the thread from this message ID |
 | `--name` | ✓ | — | thread name |
@@ -113,6 +114,7 @@ dscrd thread reply [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--allow-mentions` | — | — | let @everyone/@here, role and user mentions in the text ping (default: suppressed) |
 | `--text` | — | — | reply text |
 | `--text-file` | — | — | path to text file (use - for stdin) |
 | `--thread` | ✓ | — | thread ID |

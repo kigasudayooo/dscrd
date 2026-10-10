@@ -71,6 +71,7 @@ dscrd webhook execute [flags]
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
+| `--allow-mentions` | — | — | let @everyone/@here, role and user mentions in the text ping (default: suppressed) |
 | `--id` | ✓ | — | webhook ID |
 | `--text` | — | — | message text |
 | `--text-file` | — | — | path to text file (use - for stdin) |
